@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ActionSheetController, LoadingController, ModalController, NavController } from '@ionic/angular';
+import { ActionSheetController, AlertController, LoadingController, ModalController, NavController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/auth/auth.service';
 import { BookingService } from 'src/app/bookings/booking.service';
@@ -18,6 +18,7 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
 
   place: Place;
   isBookable = false;
+  isLoading = false;
   private placeSub: Subscription;
 
   constructor(
@@ -29,7 +30,8 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
     private actionSheetCtrl: ActionSheetController,
     private bookingsService: BookingService,
     private loadingCtrl: LoadingController,
-    private authService: AuthService
+    private authService: AuthService,
+    private alertCtrl: AlertController
     ) { }
 
   ngOnInit() {
@@ -38,10 +40,24 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
         this.navCtrl.navigateBack('/places/tabs/search');
         return;
       }
-      this.placeSub = this.placesService.getPlace(paramMap.get('placeId')).subscribe(place => {
-        this.place = place;
-        this.isBookable = place.userId !== this.authService.userId;
-      });
+      this.isLoading = true;
+      this.placeSub = this.placesService
+        .getPlace(paramMap.get('placeId'))
+        .subscribe(place => {
+          this.place = place;
+          this.isBookable = place.userId !== this.authService.userId;
+          this.isLoading = false;
+        }, error => {
+          this.alertCtrl.create({
+            header: 'An error has occured',
+            message: 'Place not found. Please try again later.',
+            buttons: [{text: 'Okay', handler:() => {
+              this.router.navigate(['/places/tabs/search']);
+            }}]
+          }).then(alertEl => {
+            alertEl.present();
+          });
+        });
     });
   }
 
@@ -70,7 +86,6 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
   }
 
   openBookingModal(mode: 'select' | 'random') {
-    console.log(mode);
     // eslint-disable-next-line max-len
     this.modalCtrl.create({component: CreateBookingComponent, componentProps: {selectedPlace: this.place, selectedMode: mode}}).then(modalEl => {
       modalEl.present();
